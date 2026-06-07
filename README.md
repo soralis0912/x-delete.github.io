@@ -2,6 +2,18 @@
 
 X 向けブックマークレット配布ページです。
 
+## GitHub Pages で公開する
+
+このリポジトリは静的 HTML/CSS/JS だけで構成されています。GitHub Pages は Actions からデプロイし、workflow が `_site` にコピーした公開用ファイルだけを配信します。
+
+現在の `origin` リポジトリでの公開 URL:
+
+```text
+https://soralis0912.github.io/x-delete.github.io/
+```
+
+公開内容を更新するには、変更を `main` ブランチに push します。GitHub Actions が `bookmarklets/*.js` から `js/generated-bookmarklets.js` を生成し、HTML/CSS/JS/画像/フォント/favicon などの配信に必要なファイルだけを GitHub Pages にアップロードします。
+
 ## ローカルで確認する
 
 このリポジトリは静的 HTML/CSS/JS だけで動きます。ローカル確認では、リポジトリ直下で簡易 HTTP サーバーを起動してください。
