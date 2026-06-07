@@ -35,27 +35,32 @@ jobs:
         run: |
           set -eu
           rm -rf _site
-          mkdir -p _site
+          mkdir -p _site/css _site/js
 
           cp -a \
             .nojekyll \
             apple-touch-icon-180x180.png \
             beta.html \
-            css \
             delete.html \
             favicon.ico \
             favicon.png \
             favicon.svg \
             favorite.html \
             follow.html \
-            font \
             img \
             index.html \
-            js \
             likes.html \
             likes2.html \
             tools.html \
             _site/
+
+          cp -a css/main.css _site/css/
+          cp -a \
+            js/bookmarklet-builder.js \
+            js/generated-bookmarklets.js \
+            js/main.js \
+            js/tools-bookmarklets.js \
+            _site/js/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
