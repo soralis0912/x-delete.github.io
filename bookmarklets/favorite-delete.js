@@ -12,7 +12,10 @@ debugLog = (message, detail) => {
     }
 };
 
-favoriteDebugVersion = "favorite-20260608-debug-v1";
+favoriteDebugVersion = "favorite-20260608-retry-v2";
+favoriteDeleteDelayMs = 1200;
+favoriteRetryBaseDelayMs = 2500;
+favoriteMaxRetries = 5;
 
 init = async () => {
     const parseInitialStateText = (text) => {
@@ -211,9 +214,25 @@ graphqlRequest = (method, operationName, data) => {
                 body: request.responseText
             });
         };
+        request.onerror = () => {
+            reject({
+                status: 0,
+                reset: "",
+                body: "network error"
+            });
+        };
         debugLog("GraphQL送信 " + operationName + " queryId=" + queryId + " method=" + method);
         request.send(method == "POST" ? JSON.stringify(payload) : null);
     });
+};
+
+isRetryableGraphqlError = (error) => {
+    return !error || error.status == 0 || error.status == 502 || error.status == 503 || error.status == 504;
+};
+
+formatGraphqlError = (error) => {
+    if (!error) return "unknown";
+    return "status=" + error.status + " reset=" + (error.reset || "none") + " body=" + (error.body ? String(error.body).slice(0, 120) : "empty");
 };
 
 getquery = (operationName) => {
@@ -291,7 +310,7 @@ queryLikes = async (cursor) => {
         for (const tweetId of parsed.tweetIds) {
             if (favoriteStop) break;
             await unfavoriteTweet(tweetId);
-            await sleep(250);
+            await sleep(favoriteDeleteDelayMs);
         }
 
         if (favoriteStop) {
@@ -306,7 +325,7 @@ queryLikes = async (cursor) => {
         alert("完了しました。\nサークルから外された、ブロックされたなどにより、全て削除できない場合があります");
     } catch (error) {
         debugLog("ERROR", error);
-        if (error && error.reset) {
+        if (error && error.status == 429 && error.reset) {
             alert("API制限です。\n" + new Date(Number(error.reset) * 1000).toLocaleTimeString() + "に解除されますので、それ以降に再度お試し下さい");
             updateFavoriteStatus(favoriteDeletedCount + "件削除しました。API制限で停止しました");
             return;
@@ -317,14 +336,27 @@ queryLikes = async (cursor) => {
 };
 
 unfavoriteTweet = async (tweetId) => {
-    await graphqlRequest("POST", "UnfavoriteTweet", {
-        variables: {
-            tweet_id: tweetId
+    for (let attempt = 1; attempt <= favoriteMaxRetries; attempt++) {
+        try {
+            updateFavoriteStatus(favoriteDeletedCount + "件削除しました。いいね解除中です (" + attempt + "/" + favoriteMaxRetries + ")");
+            await graphqlRequest("POST", "UnfavoriteTweet", {
+                variables: {
+                    tweet_id: tweetId
+                }
+            });
+            favoriteDeletedCount++;
+            updateFavoriteStatus(favoriteDeletedCount + "件削除しました");
+            debugLog("UnfavoriteTweet OK tweetId=" + tweetId + " attempt=" + attempt);
+            return;
+        } catch (error) {
+            debugLog("UnfavoriteTweet失敗 tweetId=" + tweetId + " attempt=" + attempt + " " + formatGraphqlError(error));
+            if (error && error.status == 429) throw error;
+            if (!isRetryableGraphqlError(error) || attempt == favoriteMaxRetries) throw error;
+            const delay = favoriteRetryBaseDelayMs * attempt;
+            updateFavoriteStatus(favoriteDeletedCount + "件削除しました。Xが一時的に混雑しています。 " + Math.round(delay / 1000) + "秒後に再試行します");
+            await sleep(delay);
         }
-    });
-    favoriteDeletedCount++;
-    updateFavoriteStatus(favoriteDeletedCount + "件削除しました");
-    debugLog("UnfavoriteTweet OK tweetId=" + tweetId);
+    }
 };
 
 parseLikesResponse = (response) => {
