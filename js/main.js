@@ -1,6 +1,4 @@
-let code = window.deleteBookmarkletPayload
-    ? createInlineScriptBookmarklet(window.deleteBookmarkletPayload)
-    : "";
+let code = createManagedBookmarklet("delete");
 
 document.addEventListener("DOMContentLoaded", () => {
     setUpAccordion();

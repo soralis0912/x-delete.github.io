@@ -1,0 +1,199 @@
+init = () => {
+  let path = location.pathname.split("/");
+  if (path[path.length - 1].length != 19 || path[path.length - 2] != "status") {
+    alert("ツイートを開いてください");
+    return;
+  }
+  tweet_id = path[path.length - 1];
+  document.cookie.split("; ").forEach(a => {
+    let b = a.split('=');
+    if (b[0] == "ct0") window.ct0 = b[1]
+  });
+  show_log()
+}
+
+setxhr = (a) => {
+  let _ = (b, c) => a.setRequestHeader(b, c);
+  _('Authorization', 'Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA');
+  _('x-csrf-token', ct0);
+  a.withCredentials = !0
+};
+
+get_tweet = () => {
+  let a = new XMLHttpRequest();
+  a.open('GET', `https://api.x.com/1.1/statuses/${tweet_id}/activity/summary.json?stringify_ids=1&cards_platform=Web-13&include_entities=1&include_user_entities=1&include_cards=1&send_error_codes=1&tweet_mode=extended&include_ext_alt_text=true&include_reply_count=true`);
+  setxhr(a);
+  a.onreadystatechange = () => {
+    if (a.readyState == 4) {
+      if (a.status == 200) {
+        let favs = JSON.parse(a.responseText).favoriters,
+          b = new XMLHttpRequest();
+        b.open("POST", "https://api.x.com/1.1/users/lookup.json")
+        setxhr(b);
+        b.setRequestHeader("content-type", "application/x-www-form-urlencoded")
+        b.onreadystatechange = () => {
+          if (b.readyState == 4) {
+            if (b.status == 200) {
+              let res = JSON.parse(b.responseText),
+                body = document.getElementById("body2");
+              for (let j = 0; j < res.length; j++) {
+                let str = `
+                <div class="tweet">
+                    <div class="tweet-header">
+                        <img src="${res[j].profile_image_url_https}" alt="プロフィール画像">
+                        <div>
+                            <span class="name">${res[j].name}</span>
+                            <a class="handle" href="https://x.com/${res[j].screen_name}" target="_blank">@${res[j].screen_name}</a>
+                        </div>
+                    </div>
+                </div>`
+                body.innerHTML += str;
+              }
+            } else {
+              document.getElementById('body2').innerText = "API制限です";
+            }
+          }
+        }
+        var data = `user_id=${favs.join("%2C")}&cards_platform=Web-13&include_entities=1&include_user_entities=1&include_cards=1&send_error_codes=1&tweet_mode=extended&include_ext_alt_text=true&include_reply_count=true`;
+        b.send(data)
+      } else {
+        document.getElementById('body2').innerText = "API制限です";
+      }
+    }
+  };
+  a.send()
+};
+
+
+show_log = () => {
+  let styleTag = document.createElement('style');
+  styleTag.innerHTML = `
+    .dialog {
+      width: 95%;
+      height: 90vh;
+      max-height: 90%;
+      border: none;
+      border-radius: 4px;
+      box-shadow: 0 0 24px 4px rgba(0, 0, 0, 0.4);
+      padding: 0;
+      font-family: "Segoe UI",Meiryo,system-ui,-apple-system,BlinkMacSystemFont,sans-serif;
+      font-weight: bold;
+      color: black !important;
+      background-color: #fff;
+    }
+    .dialog::backdrop {
+      background-color: rgba(0, 0, 0, 0.4);
+    }
+    .inner {
+      height: 100%;
+    }
+    .body {
+      text-align: center;
+    }
+
+    .dialog .footer {
+      background-color: #fff;
+      text-align: center;
+      margin: 0;
+      padding: 1em;
+      position: sticky;
+      bottom: 0;
+    }
+    .dialog .button {
+      width: 8em;
+      height: 2.4em;
+      border: none;
+      border-radius: 4px;
+      font-size: smaller;
+      font-weight: bold;
+      color: black !important;
+    }
+    .dialog .button.cancel {
+      background-color: #e6eae6;
+    }
+    .dialog .button:hover {
+      opacity: 0.8;
+    }
+
+    .dialog[open],
+    .dialog[open]::backdrop {
+      animation: fadeIn 200ms ease normal;
+    }
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+    .dialog.hide,
+    .dialog.hide::backdrop {
+      animation: fadeOut 200ms ease normal;
+    }
+    @keyframes fadeOut {
+      to {
+        opacity: 0;
+      }
+    }
+
+    .tweet {
+      background-color: #fff;
+      border: 1px solid #e1e8ed;
+      border-radius: 8px;
+      padding: 5px 16px;
+      margin: 16px;
+      text-align: left;
+    }
+    .tweet-header {
+        display: flex;
+        align-items: center;
+    }
+    .tweet-header img {
+        border-radius: 50%;
+        width: 48px;
+        height: 48px;
+        margin-right: 10px;
+    }
+    .tweet-header .name {
+        font-weight: bold;
+    }
+    .tweet-header .handle {
+        color: #657786;
+        margin-left: 8px;
+    }
+    `;
+  document.head.insertAdjacentElement('beforeend', styleTag);
+  let dialogs = document.createElement('div');
+  dialogs.id = "dialogs";
+  dialogs.innerHTML = `
+    <dialog id="dialogFade" class="dialog">
+      <div class="inner">
+        <div class="body">
+          <div id="body2">
+          </div>
+        </div>
+        <div class="footer">
+          <p><button class="button cancel">閉じる</button></p>
+        </div>
+      </div>
+    </dialog>
+    `;
+  document.body.appendChild(dialogs);
+  dialogFade.showModal();
+  function remove(name, flag) {
+    let dia = document.querySelector('#' + name);
+    dia.classList.add('hide');
+    dia.addEventListener('animationend', function closeDialog() {
+      document.body.classList.remove('inactive');
+      this.classList.remove('hide');
+      this.close();
+      this.removeEventListener('animationend', closeDialog);
+      if (flag) document.getElementById("dialogs").remove()
+    });
+  }
+  document.querySelectorAll('.button.cancel')[0].addEventListener('click', () => {
+    remove("dialogFade", true)
+  });
+  get_tweet()
+}
