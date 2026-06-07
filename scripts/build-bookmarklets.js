@@ -27,7 +27,7 @@ const bookmarklets = [
     {
         key: "favoriteDelete",
         source: "bookmarklets/favorite-delete.js",
-        wrapper: "plain",
+        wrapper: "inline",
     },
 ];
 
